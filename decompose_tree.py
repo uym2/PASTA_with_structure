@@ -4,6 +4,7 @@ from dendropy import Tree
 from sepp_tool.tree import PhylogeneticTree
 import sys
 from basic_utils import  trl_zero
+import os
 
 path = sys.argv[1]
 out_path = sys.argv[2]
@@ -22,6 +23,13 @@ treeMap = T.decompose_tree(M,'centroid',minSize=m,decomp_strategy='normal')
 
 treeNum = len(treeMap.keys())
 #print treeNum
+
+print('writing tree ... ')
+
+try:
+    os.stat(out_path)
+except:
+    os.mkdir(out_path)
 
 for (k,T) in treeMap.items():
 	#print k
