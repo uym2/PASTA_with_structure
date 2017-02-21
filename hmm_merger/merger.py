@@ -108,7 +108,7 @@ def merge(aln1,aln2,ref_aln):
 
 	eg1,eg2 = expected_gap(l1,l2,n,m,ref_aln)
 	gap_penalty = (l1-eg1)*(l2-eg2)/10
-	print(gap_penalty)
+	#print(gap_penalty)
 
 	aln_score = [[0 for i in range(m+1)] for j in range(n+1)]
 	backtrack = [['-' for i in range(m+1)] for j in range(n+1)]
