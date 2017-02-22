@@ -59,10 +59,11 @@ def expected_gap(l1,l2,n,m,ref_aln):
 
 	return eg1/n, eg2/m
 
-def estimate_score(aln1,aln2,ref_aln):
+def heuristic_score(aln1,aln2,ref_aln):
 	matching = ref_matching(aln1,aln2,ref_aln)
 	m = len(matching[0])
 	n = len(matching)
+	pairing = {}
 	scoring = {}
 	
 	for i in range(m):
@@ -93,21 +94,39 @@ def estimate_score(aln1,aln2,ref_aln):
 		#	d2[-1] = len(aln2)
 		for x in L1:
 			for y in L2:
-				if (x,y) not in scoring:
-					scoring[(x,y)] = 0
-				scoring[(x,y)] += d1[x]*d2[y]
+				if (x,y) not in pairing:
+					pairing[(x,y)] = 0
+				pairing[(x,y)] += d1[x]*d2[y]
+	for i in range(len(aln1[0])):
+		for j in range(len(aln2[0])):
+			if (i,j) in pairing:
+				'''	
+				count = 0
+				for k in range(len(aln2[0])):
+					count = count + pairing[(i,k)] if (i,k) in pairing else count
+				for k in range(len(aln1[0])):
+					count = count + pairing[(k,j)] if (k,j) in pairing else count
+				count -= pairing[(i,j)]
+				scoring[(i,j)] = 1000*float(pairing[(i,j)])/count
+				'''	
+				scoring[(i,j)] = pairing[(i,j)]
+	#print scoring				
+	return scoring
+
+def logodd_score(aln1,aln2,ref_aln):
+	scoring = {}
 	return scoring
 
 def merge(aln1,aln2,ref_aln):
-	scoring = estimate_score(aln1,aln2,ref_aln)
+	scoring = heuristic_score(aln1,aln2,ref_aln)
 	m = len(aln2[0])
 	n = len(aln1[0])
 
 	l1 = len(aln1)
 	l2 = len(aln2)
 
-	eg1,eg2 = expected_gap(l1,l2,n,m,ref_aln)
-	gap_penalty = (l1-eg1)*(l2-eg2)/10
+	#eg1,eg2 = expected_gap(l1,l2,n,m,ref_aln)
+	#gap_penalty = (l1-eg1)*(l2-eg2)/1000
 	#print(gap_penalty)
 
 	aln_score = [[0 for i in range(m+1)] for j in range(n+1)]
@@ -115,9 +134,11 @@ def merge(aln1,aln2,ref_aln):
 	for i in range(1,m+1):
 		backtrack[0][i] = 'L'
 		#aln_score[0][i] = aln_score[0][i-1] + scoring[(-1,i-1)] if (-1,i-1) in scoring else aln_score[0][i-1]
+		#aln_score[0][i] = aln_score[0][i-1] - gap_penalty
 	for j in range(1,n+1):
 		backtrack[j][0] = 'U'
 		#aln_score[j][0] = aln_score[j-1][0] + scoring[(j-1,-1)] if (j-1,-1) in scoring else aln_score[j-1][0]
+		#aln_score[j][0] = aln_score[j-1][0] - gap_penalty
 
 	for j in range(1,n+1):
 		for i in range(1,m+1):
@@ -200,7 +221,7 @@ for i in range(len(ref_aln)):
 	ref_aln[i] = ref_aln[i].upper()
 
 
-#print(estimate_score(aln1,aln2,ref_aln))
+#print(heuristic_score(aln1,aln2,ref_aln))
 score,cons1,cons2 = merge(aln1,aln2,ref_aln)
 
 if outfile:
