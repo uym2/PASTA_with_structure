@@ -212,14 +212,16 @@ else:
 taxon_name1, aln1 = read_fasta(aln1_file)
 taxon_name2, aln2 = read_fasta(aln2_file)
 taxon_name_all, ref_aln = read_fasta(ref_aln_file)
+#print aln1[0]
 
+'''
 for i in range(len(aln1)):
 	aln1[i] = aln1[i].upper()
 for i in range(len(aln2)):
 	aln2[i] = aln2[i].upper()
 for i in range(len(ref_aln)):
 	ref_aln[i] = ref_aln[i].upper()
-
+'''
 
 #print(heuristic_score(aln1,aln2,ref_aln))
 score,cons1,cons2 = merge(aln1,aln2,ref_aln)
@@ -238,4 +240,3 @@ for i in range(len(aln2)):
 
 if outfile:
 	fout.close()
-
