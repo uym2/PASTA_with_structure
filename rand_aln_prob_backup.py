@@ -5,12 +5,12 @@ class rand_Aln:
 
 		self.Q[(0,0)] = 1
 		for i in range(1,n+1):
-			self.Q[(0,i)] = self.Q[(0,i-1)]*(float(1)/2.5)
+			self.Q[(0,i)] = self.Q[(0,i-1)]*0.5
 
 		for j in range(1,n+1):
-			self.Q[(j,j)] = (float(1)/2.5)*(float(1)/2.5)*self.Q[(j-1,j-1)] + 2*(float(1)/2.5)*self.Q[(j-1,j)]
+			self.Q[(j,j)] = 0.25*self.Q[(j-1,j-1)] + self.Q[(j-1,j)]
 			for i in range(j+1,n+1):
-				self.Q[(j,i)] = (float(1)/2.5)*(float(1)/2.5)*self.Q[(j-1,i-1)] + (float(1)/2.5)*self.Q[(j,i-1)] + (float(1)/2.5)*self.Q[(j-1,i)]
+				self.Q[(j,i)] = 0.25*self.Q[(j-1,i-1)] + 0.5*self.Q[(j,i-1)] + 0.5*self.Q[(j-1,i)]
 	
 	def __q(self,m1=None,n1=None):
 		m1 = self.n if m1 is None else m1
@@ -27,9 +27,9 @@ class rand_Aln:
 			print ("Already up-to-date with the specified size")
 		else:
 			for j in range(self.n+1,n1+1):
-				self.Q[(j,j)] = (float(1)/2.5)*(float(1)/2.5)*self.Q[(j-1,j-1)] + 2*(float(1)/2.5)*self.Q[(j-1,j)]
+				self.Q[(j,j)] = 0.25*self.Q[(j-1,j-1)] + self.Q[(j-1,j)]
 				for i in range(j+1,n+1):
-					self.Q[(j,i)] = (float(1)/2.5)*(float(1)/2.5)*self.Q[(j-1,i-1)] + (float(1)/2.5)*Q[(j,i-1)] + (float(1)/2.5)*Q[(j-1,i)]
+					self.Q[(j,i)] = 0.25*self.Q[(j-1,i-1)] + 0.5*Q[(j,i-1)] + 0.5*Q[(j-1,i)]
 			self.n = n1
 			print ("Matrix Q extended successfully")
 
@@ -42,16 +42,16 @@ class rand_Aln:
 			print("Invalid input")
 			return -1
 		else:
-			#print(self.__q(i-1,j-1))
-			#print(self.__q(m1-i,n1-j))
-			#print(self.__q(m1,n1))
-			return (float(1)/2.5)*(float(1)/2.5)*self.__q(i-1,j-1)*self.__q(m1-i,n1-j)/float(self.__q(m1,n1))
+			print(self.__q(i-1,j-1))
+			print(self.__q(m1-i,n1-j))
+			print(self.__q(m1,n1))
+			return 0.25*self.__q(i-1,j-1)*self.__q(m1-i,n1-j)/float(self.__q(m1,n1))
 
 	def del_rate(self,m1,n1,i):
 	# deletion rate (prob of aligning ith column of seq 1 with a gap)
 		p = 0
 		for j in range(n1+1):
-			p += (float(1)/2.5)*self.__q(i-1,j)*self.__q(m1-i,n1-j)/float(self.__q(m1,n1))
+			p += 0.5*self.__q(i-1,j)*self.__q(m1-i,n1-j)/float(self.__q(m1,n1))
 		return p	
 
 
@@ -59,5 +59,5 @@ class rand_Aln:
 	# insertion rate (prob of aligning jth column of seq 2 with a gap)
 		p = 0
 		for i in range(m1+1):
-			p += (float(1)/2.5)*self.__q(i,j-1)*self.__q(m1-i,n1-j)/float(self.__q(m1,n1))
+			p += 0.5*self.__q(i,j-1)*self.__q(m1-i,n1-j)/float(self.__q(m1,n1))
 		return p	

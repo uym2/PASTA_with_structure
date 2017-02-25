@@ -1,4 +1,6 @@
 from sequence_lib import read_fasta
+from rand_aln_prob import rand_Aln
+from math import log
 
 class merger:
 	def __init__(self,ref_aln_file):
@@ -28,8 +30,10 @@ class merger:
 			tax = taxa1[j1]
 			j = self.seqidx(tax)
 			i1 = 0
+			gap1 = 0
 			for i in range(m):
 				if self.ref_aln[j][i] == '-':
+					gap1 += 1
 					continue
 				while aln1[j1][i1] == '-':
 					i1 += 1
@@ -38,15 +42,17 @@ class merger:
 					i1 += 1
 					#print(matching)
 				else:
-					print("reference alignment and alignment 1 are not matched at sequence #" + str(j))
-
+					print("reference alignment and alignment 1 are not matched at taxon " + tax)
+		gap_rate1 = float(gap1)/len(self.ref_aln[0])/len(aln1)
 		# match aln2 to ref_aln
 		for j2 in range(len(aln2)):
 			tax = taxa2[j2]
 			j = self.seqidx(tax)
 			i2 = 0
+			gap2 = 0
 			for i in range(m):
 				if self.ref_aln[j][i] == '-':
+					gap2 += 1
 					continue
 				while aln2[j2][i2] == '-':
 					i2 += 1
@@ -54,11 +60,12 @@ class merger:
 					matching[j2+len(aln1)][i] = i2
 					i2 += 1
 				else:
-					print("reference alignment and alignment 2 are not matched at sequence #" + str(j))
-		return matching
+					print("reference alignment and alignment 2 are not matched at taxon " + tax)
+		gap_rate2 = float(gap2)/len(self.ref_aln[0])/len(aln2)
+		return matching,gap_rate1,gap_rate2
 
 	def heuristic_score(self,aln1,taxa1,aln2,taxa2,norm=False):
-		matching = self.ref_matching(aln1,taxa1,aln2,taxa2)
+		matching,gap_rate1,gap_rate2 = self.ref_matching(aln1,taxa1,aln2,taxa2)
 		m = len(matching[0])
 		n = len(matching)
 		pairing = {}
@@ -106,39 +113,38 @@ class merger:
 		else:					
 			scoring = pairing
 		
-		return scoring
-	'''
-	def logodd_score(aln1,aln2,ref_aln):
-		scoring = {}
-		return scoring
-	'''
+		return scoring,gap_rate1,gap_rate2
 	
-	def merge(self,n,m,scoring,ins_penl=0,del_penl=0):
-		#scoring = score_func(aln1,aln2)
-		#m = len(aln2[0])
-		#n = len(aln1[0])
-
-		#l1 = len(aln1)
-		#l2 = len(aln2)
-
-		#eg1,eg2 = expected_gap(l1,l2,n,m,ref_aln)
-		#gap_penalty = (l1-eg1)*(l2-eg2)/1000
-		#print(gap_penalty)
-
+	def logodd_score(self,aln1,taxa1,aln2,taxa2,rand_P):
+		scoring,gap_rate1,gap_rate2 = self.heuristic_score(aln1,taxa1,aln2,taxa2,norm=True)
+		#print(gap_rate1)
+		#print(gap_rate2)
+		for key in scoring:
+			#print(rand_P.prob(len(aln1[0]),len(aln2[0]),key[0]+1,key[1]+1))
+			scoring[key] = log(scoring[key]/rand_P.prob(len(aln1[0]),len(aln2[0]),key[0]+1,key[1]+1))
+		#print(scoring)
+		del_score = log(gap_rate2/rand_P.del_rate(len(aln1[0]),len(aln2[0]),1))
+		ins_score = log(gap_rate1/rand_P.ins_rate(len(aln1[0]),len(aln2[0]),1))
+		#print(del_score)
+		#print(ins_score)
+		return scoring,del_score,ins_score
+	
+	
+	def merge(self,n,m,scoring,default=0,ins_score=0,del_score=0):
 		aln_score = [[0 for i in range(m+1)] for j in range(n+1)]
 		backtrack = [['-' for i in range(m+1)] for j in range(n+1)]
 		for i in range(1,m+1):
 			backtrack[0][i] = 'L'
-			aln_score[0][i] = aln_score[0][i-1] - ins_penl
+			aln_score[0][i] = aln_score[0][i-1] + ins_score
 		for j in range(1,n+1):
 			backtrack[j][0] = 'U'
-			aln_score[j][0] = aln_score[j-1][0] - del_penl
+			aln_score[j][0] = aln_score[j-1][0] + del_score
 
 		for j in range(1,n+1):
 			for i in range(1,m+1):
-				ms  = aln_score[j-1][i-1] + scoring[(j-1,i-1)] if (j-1,i-1) in scoring else aln_score[j-1][i-1]
-				g1 = aln_score[j][i-1] - ins_penl
-				g2 = aln_score[j-1][i] - del_penl
+				ms  = aln_score[j-1][i-1] + scoring[(j-1,i-1)] if (j-1,i-1) in scoring else aln_score[j-1][i-1] + default
+				g1 = aln_score[j][i-1] + ins_score
+				g2 = aln_score[j-1][i] + del_score
 
 				if ms >= g1 and ms >= g2:
 					aln_score[j][i] = ms
@@ -184,3 +190,11 @@ class merger:
 		n = len(aln1[0])
 		return self.merge(n,m,scoring)
 
+	def logodd_merge(self,aln1,taxa1,aln2,taxa2,rand_P):
+		scoring,del_score,ins_score = self.logodd_score(aln1,taxa1,aln2,taxa2,rand_P)
+		print(del_score)
+		print(ins_score)
+		m = len(aln2[0])
+		n = len(aln1[0])
+		#return self.merge(n,m,scoring,default=0,ins_score=0,del_score=0)
+		return self.merge(n,m,scoring)
