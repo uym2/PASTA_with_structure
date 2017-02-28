@@ -64,11 +64,10 @@ class merger:
 		gap_rate2 = float(gap2)/len(self.ref_aln[0])/len(aln2)
 		return matching,gap_rate1,gap_rate2
 
-	def heuristic_score(self,aln1,taxa1,aln2,taxa2,norm=False):
+	def heuristic_score(self,aln1,taxa1,aln2,taxa2):
 		matching,gap_rate1,gap_rate2 = self.ref_matching(aln1,taxa1,aln2,taxa2)
 		m = len(matching[0])
 		n = len(matching)
-		pairing = {}
 		scoring = {}
 		
 		for i in range(m):
@@ -95,28 +94,13 @@ class merger:
 						d[matching[j][i]] = 1
 			for x in L1:
 				for y in L2:
-					if (x,y) not in pairing:
-						pairing[(x,y)] = 0
-					pairing[(x,y)] += d1[x]*d2[y]
-		if norm:
-			for i in range(len(aln1[0])):
-				for j in range(len(aln2[0])):
-					if (i,j) in pairing:
-							
-						count = 0
-						for k in range(len(aln2[0])):
-							count = count + pairing[(i,k)] if (i,k) in pairing else count
-						for k in range(len(aln1[0])):
-							count = count + pairing[(k,j)] if (k,j) in pairing else count
-						count -= pairing[(i,j)]
-						scoring[(i,j)] = float(pairing[(i,j)])/count
-		else:					
-			scoring = pairing
-		
+					if (x,y) not in scoring:
+						scoring[(x,y)] = 0
+					scoring[(x,y)] += float(d1[x])*d2[y]/len(aln1)/len(aln2)
 		return scoring,gap_rate1,gap_rate2
 	
 	def logodd_score(self,aln1,taxa1,aln2,taxa2,rand_P):
-		scoring,gap_rate1,gap_rate2 = self.heuristic_score(aln1,taxa1,aln2,taxa2,norm=True)
+		scoring,gap_rate1,gap_rate2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
 		#print(gap_rate1)
 		#print(gap_rate2)
 		for key in scoring:
@@ -185,7 +169,7 @@ class merger:
 		return aln_score[n][m], M1, M2		
 
 	def heuristic_merge(self,aln1,taxa1,aln2,taxa2):
-		scoring = self.heuristic_score(aln1,taxa1,aln2,taxa2)
+		scoring,g1,g2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
 		m = len(aln2[0])
 		n = len(aln1[0])
 		return self.merge(n,m,scoring)
