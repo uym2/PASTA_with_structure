@@ -21,6 +21,9 @@ class merger:
 		m = len(self.ref_aln[0])
 		n = len(aln1) + len(aln2)
 		matching = [[-1 for x in range(m)] for y in range(n)]
+		match1 = [[-1 for x in range(len(aln1[0])+1)] for y in range(len(aln1))] # the last column stores the length of each sequence
+		match2 = [[-1 for x in range(len(aln2[0])+1)] for y in range(len(aln2))] # the last column stores the length of each sequence
+
 
 		#taxa1, aln1 = read_fasta(aln1_file)
 		#taxa2, aln2 = read_fasta(aln2_file)
@@ -30,6 +33,7 @@ class merger:
 			tax = taxa1[j1]
 			j = self.seqidx(tax)
 			i1 = 0
+			k = 0
 			gap1 = 0
 			for i in range(m):
 				if self.ref_aln[j][i] == '-':
@@ -37,18 +41,22 @@ class merger:
 					continue
 				while aln1[j1][i1] == '-':
 					i1 += 1
+				match1[j1][i1] = k
+				k += 1
 				if aln1[j1][i1] == self.ref_aln[j][i]:
 					matching[j1][i] = i1
 					i1 += 1
 					#print(matching)
 				else:
 					print("reference alignment and alignment 1 are not matched at taxon " + tax)
+			match1[j1][len(aln1[0])] = k
 		gap_rate1 = float(gap1)/len(self.ref_aln[0])/len(aln1)
 		# match aln2 to ref_aln
 		for j2 in range(len(aln2)):
 			tax = taxa2[j2]
 			j = self.seqidx(tax)
 			i2 = 0
+			k = 0
 			gap2 = 0
 			for i in range(m):
 				if self.ref_aln[j][i] == '-':
@@ -56,16 +64,19 @@ class merger:
 					continue
 				while aln2[j2][i2] == '-':
 					i2 += 1
+				match2[j2][i2] = k
+				k += 1
 				if aln2[j2][i2] == self.ref_aln[j][i]:
 					matching[j2+len(aln1)][i] = i2
 					i2 += 1
 				else:
 					print("reference alignment and alignment 2 are not matched at taxon " + tax)
+			match2[j2][len(aln2[0])] = k
 		gap_rate2 = float(gap2)/len(self.ref_aln[0])/len(aln2)
-		return matching,gap_rate1,gap_rate2
+		return matching,match1,match2,gap_rate1,gap_rate2
 
 	def heuristic_score(self,aln1,taxa1,aln2,taxa2):
-		matching,gap_rate1,gap_rate2 = self.ref_matching(aln1,taxa1,aln2,taxa2)
+		matching,m1,m2,gap_rate1,gap_rate2 = self.ref_matching(aln1,taxa1,aln2,taxa2)
 		m = len(matching[0])
 		n = len(matching)
 		scoring = {}
@@ -97,15 +108,25 @@ class merger:
 					if (x,y) not in scoring:
 						scoring[(x,y)] = 0
 					scoring[(x,y)] += float(d1[x])*d2[y]/len(aln1)/len(aln2)
-		return scoring,gap_rate1,gap_rate2
+		return scoring,m1,m2,gap_rate1,gap_rate2
 	
 	def logodd_score(self,aln1,taxa1,aln2,taxa2,rand_P):
-		scoring,gap_rate1,gap_rate2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
+		scoring,match1,match2,gap_rate1,gap_rate2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
 		#print(gap_rate1)
 		#print(gap_rate2)
 		for key in scoring:
-			#print(rand_P.prob(len(aln1[0]),len(aln2[0]),key[0]+1,key[1]+1))
-			scoring[key] = log(scoring[key]/rand_P.prob(len(aln1[0]),len(aln2[0]),key[0]+1,key[1]+1))
+			print(key)
+			p = 0
+			for s1 in match1:
+				for s2 in match2:
+					if s1[key[0]] >= 0 and s2[key[1]] >= 0 :
+						p += rand_P.prob(s1[-1],s2[-1],s1[key[0]]+1,s2[key[1]]+1)
+						#print(p)
+			#scoring[key] = log(scoring[key]/rand_P.prob(len(aln1[0]),len(aln2[0]),key[0]+1,key[1]+1))
+			p = p/len(aln1)/len(aln2)
+			#print(p)
+			scoring[key] = log(scoring[key]/p)
+			#print(scoring[key])
 		#print(scoring)
 		del_score = log(gap_rate2/rand_P.del_rate(len(aln1[0]),len(aln2[0]),1))
 		ins_score = log(gap_rate1/rand_P.ins_rate(len(aln1[0]),len(aln2[0]),1))
@@ -169,16 +190,16 @@ class merger:
 		return aln_score[n][m], M1, M2		
 
 	def heuristic_merge(self,aln1,taxa1,aln2,taxa2):
-		scoring,g1,g2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
+		scoring,m1,m2,g1,g2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
 		m = len(aln2[0])
 		n = len(aln1[0])
 		return self.merge(n,m,scoring)
 
 	def logodd_merge(self,aln1,taxa1,aln2,taxa2,rand_P):
 		scoring,del_score,ins_score = self.logodd_score(aln1,taxa1,aln2,taxa2,rand_P)
-		print(del_score)
-		print(ins_score)
+		#print(del_score)
+		#print(ins_score)
 		m = len(aln2[0])
 		n = len(aln1[0])
-		#return self.merge(n,m,scoring,default=0,ins_score=0,del_score=0)
-		return self.merge(n,m,scoring)
+		return self.merge(n,m,scoring,default=-100,ins_score=0,del_score=0)
+		#return self.merge(n,m,scoring)
