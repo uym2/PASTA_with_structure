@@ -115,6 +115,7 @@ class merger:
 		#print(gap_rate1)
 		#print(gap_rate2)
 		for key in scoring:
+			'''
 			print(key)
 			p = 0
 			for s1 in match1:
@@ -122,10 +123,11 @@ class merger:
 					if s1[key[0]] >= 0 and s2[key[1]] >= 0 :
 						p += rand_P.prob(s1[-1],s2[-1],s1[key[0]]+1,s2[key[1]]+1)
 						#print(p)
-			#scoring[key] = log(scoring[key]/rand_P.prob(len(aln1[0]),len(aln2[0]),key[0]+1,key[1]+1))
-			p = p/len(aln1)/len(aln2)
+			'''
+			scoring[key] = log(scoring[key]/rand_P.prob(len(aln1[0]),len(aln2[0]),key[0]+1,key[1]+1))
+			#p = p/len(aln1)/len(aln2)
 			#print(p)
-			scoring[key] = log(scoring[key]/p)
+			#scoring[key] = scoring[key]/p
 			#print(scoring[key])
 		#print(scoring)
 		del_score = log(gap_rate2/rand_P.del_rate(len(aln1[0]),len(aln2[0]),1))
@@ -201,5 +203,5 @@ class merger:
 		#print(ins_score)
 		m = len(aln2[0])
 		n = len(aln1[0])
-		return self.merge(n,m,scoring,default=-100,ins_score=0,del_score=0)
-		#return self.merge(n,m,scoring)
+		#return self.merge(n,m,scoring,default=0,ins_score=0,del_score=0)
+		return self.merge(n,m,scoring)
