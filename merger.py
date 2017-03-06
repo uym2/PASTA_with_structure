@@ -75,12 +75,21 @@ class merger:
 		gap_rate2 = float(gap2)/len(self.ref_aln[0])/len(aln2)
 		return matching,match1,match2,gap_rate1,gap_rate2
 
+	def residue_count(self,aln):
+		R = []
+		for j in range(len(aln[0])):
+			R += [0]
+			for i in range(len(aln)):
+				if aln[i][j] != '-':
+					R[j] += 1
+		return R
+
 	def heuristic_score(self,aln1,taxa1,aln2,taxa2):
 		matching,m1,m2,gap_rate1,gap_rate2 = self.ref_matching(aln1,taxa1,aln2,taxa2)
 		m = len(matching[0])
 		n = len(matching)
-		scoring = {}
-		
+		TP_score = {}
+			
 		for i in range(m):
 			L1 = []
 			d1 = {}
@@ -105,16 +114,16 @@ class merger:
 						d[matching[j][i]] = 1
 			for x in L1:
 				for y in L2:
-					if (x,y) not in scoring:
-						scoring[(x,y)] = 0
-					scoring[(x,y)] += float(d1[x])*d2[y]/len(aln1)/len(aln2)
-		return scoring,m1,m2,gap_rate1,gap_rate2
+					if (x,y) not in TP_score:
+						TP_score[(x,y)] = 0
+					TP_score[(x,y)] += float(d1[x])*d2[y]/len(aln1)/len(aln2)
+		return TP_score,m1,m2,gap_rate1,gap_rate2
 	
 	def logodd_score(self,aln1,taxa1,aln2,taxa2,rand_P):
-		scoring,match1,match2,gap_rate1,gap_rate2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
+		TP_score,match1,match2,gap_rate1,gap_rate2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
 		#print(gap_rate1)
 		#print(gap_rate2)
-		for key in scoring:
+		for key in TP_score:
 			print(key)
 			p = 0
 			for s1 in match1:
@@ -122,20 +131,26 @@ class merger:
 					if s1[key[0]] >= 0 and s2[key[1]] >= 0 :
 						p += rand_P.prob(s1[-1],s2[-1],s1[key[0]]+1,s2[key[1]]+1)
 						#print(p)
-			#scoring[key] = log(scoring[key]/rand_P.prob(len(aln1[0]),len(aln2[0]),key[0]+1,key[1]+1))
+			#TP_score[key] = log(TP_score[key]/rand_P.prob(len(aln1[0]),len(aln2[0]),key[0]+1,key[1]+1))
 			p = p/len(aln1)/len(aln2)
 			#print(p)
-			scoring[key] = log(scoring[key]/p)
-			#print(scoring[key])
-		#print(scoring)
+			TP_score[key] = log(TP_score[key]/p)
+			#print(TP_score[key])
+		#print(TP_score)
 		del_score = log(gap_rate2/rand_P.del_rate(len(aln1[0]),len(aln2[0]),1))
 		ins_score = log(gap_rate1/rand_P.ins_rate(len(aln1[0]),len(aln2[0]),1))
 		#print(del_score)
 		#print(ins_score)
-		return scoring,del_score,ins_score
+		return TP_score,del_score,ins_score
 	
 	
-	def merge(self,n,m,scoring,default=0,ins_score=0,del_score=0):
+	def merge(self,aln1,aln2,TP_score,default=0,ins_score=0,del_score=0,w=1):
+		n = len(aln1[0])
+		m = len(aln2[0])
+
+		R1 = self.residue_count(aln1)
+		R2 = self.residue_count(aln2)		
+
 		aln_score = [[0 for i in range(m+1)] for j in range(n+1)]
 		backtrack = [['-' for i in range(m+1)] for j in range(n+1)]
 		for i in range(1,m+1):
@@ -147,7 +162,8 @@ class merger:
 
 		for j in range(1,n+1):
 			for i in range(1,m+1):
-				ms  = aln_score[j-1][i-1] + scoring[(j-1,i-1)] if (j-1,i-1) in scoring else aln_score[j-1][i-1] + default
+				TP = TP_score[(j-1,i-1)] if (j-1,i-1) in TP_score else default
+				ms  = aln_score[j-1][i-1] + (2*w-1)*TP - (1-w)*R1[j-1]*R2[i-1]
 				g1 = aln_score[j][i-1] + ins_score
 				g2 = aln_score[j-1][i] + del_score
 
@@ -190,16 +206,16 @@ class merger:
 		return aln_score[n][m], M1, M2		
 
 	def heuristic_merge(self,aln1,taxa1,aln2,taxa2):
-		scoring,m1,m2,g1,g2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
-		m = len(aln2[0])
-		n = len(aln1[0])
-		return self.merge(n,m,scoring)
+		TP_score,m1,m2,g1,g2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
+		#m = len(aln2[0])
+		#n = len(aln1[0])
+		return self.merge(aln1,aln2,TP_score)
 
 	def logodd_merge(self,aln1,taxa1,aln2,taxa2,rand_P):
-		scoring,del_score,ins_score = self.logodd_score(aln1,taxa1,aln2,taxa2,rand_P)
+		TP_score,del_score,ins_score = self.logodd_score(aln1,taxa1,aln2,taxa2,rand_P)
 		#print(del_score)
 		#print(ins_score)
-		m = len(aln2[0])
-		n = len(aln1[0])
-		return self.merge(n,m,scoring,default=-100,ins_score=0,del_score=0)
-		#return self.merge(n,m,scoring)
+		#m = len(aln2[0])
+		#n = len(aln1[0])
+		return self.merge(aln1,aln2,TP_score,default=-100,ins_score=0,del_score=0)
+		#return self.merge(n,m,TP_score)
