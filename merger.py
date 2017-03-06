@@ -124,6 +124,7 @@ class merger:
 		#print(gap_rate1)
 		#print(gap_rate2)
 		for key in TP_score:
+			'''
 			print(key)
 			p = 0
 			for s1 in match1:
@@ -135,6 +136,13 @@ class merger:
 			p = p/len(aln1)/len(aln2)
 			#print(p)
 			TP_score[key] = log(TP_score[key]/p)
+			#print(TP_score[key])
+		#print(TP_score)
+			'''
+			TP_score[key] = log(TP_score[key]/rand_P.prob(len(aln1[0]),len(aln2[0]),key[0]+1,key[1]+1))
+			#p = p/len(aln1)/len(aln2)
+			#print(p)
+			#TP_score[key] = TP_score[key]/p
 			#print(TP_score[key])
 		#print(TP_score)
 		del_score = log(gap_rate2/rand_P.del_rate(len(aln1[0]),len(aln2[0]),1))
