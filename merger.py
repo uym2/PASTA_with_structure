@@ -116,7 +116,7 @@ class merger:
 				for y in L2:
 					if (x,y) not in TP_score:
 						TP_score[(x,y)] = 0
-					TP_score[(x,y)] += float(d1[x])*d2[y]/len(aln1)/len(aln2)
+					TP_score[(x,y)] += float(d1[x])*d2[y]#/len(aln1)/len(aln2)
 		return TP_score,m1,m2,gap_rate1,gap_rate2
 	
 	def logodd_score(self,aln1,taxa1,aln2,taxa2,rand_P):
@@ -217,7 +217,7 @@ class merger:
 		TP_score,m1,m2,g1,g2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
 		#m = len(aln2[0])
 		#n = len(aln1[0])
-		return self.merge(aln1,aln2,TP_score)
+		return self.merge(aln1,aln2,TP_score,w=0.75)
 
 	def logodd_merge(self,aln1,taxa1,aln2,taxa2,rand_P):
 		TP_score,del_score,ins_score = self.logodd_score(aln1,taxa1,aln2,taxa2,rand_P)
