@@ -1,4 +1,4 @@
-from merger import merger
+from merger_backup import merger
 from sys import argv,stdout
 from sequence_lib import read_fasta, write_fasta,gap_propagate
 from rand_aln_prob import rand_Aln
