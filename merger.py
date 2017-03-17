@@ -1,12 +1,16 @@
 from sequence_lib import read_fasta
 from rand_aln_prob import rand_Aln
-from math import log
+from math import log,sqrt
+from FastSP import FastSP
 
 class merger:
 	def __init__(self,ref_aln_file):
 		taxa_names, ref_aln = read_fasta(ref_aln_file)
 		self.ref_aln = ref_aln	
 		self.tax2seqidx = {}
+		self.wp = 1 # P(true|ref_aln): probability that a homology is true given it is found in ref_aln (modeler)
+		self.wn = 0 # P(true|~ref_aln): probability that a homology not found in ref_aln is true
+			    # = P(true|~ref_aln) = P(~ref_aln|true)*P(true)/P(~ref_aln) = SPFN*P(true)/P(~ref_aln)
 
 		for i in range(len(taxa_names)):
 			self.tax2seqidx[taxa_names[i]] = i
@@ -16,6 +20,36 @@ class merger:
 
 	def seqidx(self,tax):
 		return self.tax2seqidx[tax]
+
+	def __eval(self,aln,taxa):
+		M = []
+		count = 0
+		subtr = 0
+
+		for i,tax in enumerate(taxa):
+			M.append(self.ref_aln[self.tax2seqidx[tax]])
+			l = len([x for x in aln[i] if x != '-'])
+			count += l
+			subtr += l*(l-1)/2
+
+		hshared,hA,hM = FastSP(aln,M)
+		h_all=count*(count-1)/2 - subtr
+		wp = 1.0*hshared/hM
+		wn = (1.0-hshared/hA)*hA/(h_all-hM)
+		
+		return wp,wn
+
+	def evalRef(self,aln1,taxa1,aln2=None,taxa2=None):
+		wp1,wn1 = self.__eval(aln1,taxa1)
+
+		if aln2 is None or taxa2 is None:
+			self.wp = wp1
+			self.wn = wn1
+		else:
+			wp2,wn2 = self.__eval(aln2,taxa2)
+			self.wp = sqrt(wp1*wp2)
+			self.wn = sqrt(wn1*wn2)
+		
 
 	def ref_matching(self,aln1,taxa1,aln2,taxa2):
 		m = len(self.ref_aln[0])
@@ -30,10 +64,10 @@ class merger:
 			j = self.seqidx(tax)
 			i1 = 0
 			k = 0
-			gap1 = 0
+			#gap1 = 0
 			for i in range(m):
 				if self.ref_aln[j][i] == '-':
-					gap1 += 1
+					#gap1 += 1
 					continue
 				while aln1[j1][i1] == '-':
 					i1 += 1
@@ -54,7 +88,7 @@ class merger:
 			gap2 = 0
 			for i in range(m):
 				if self.ref_aln[j][i] == '-':
-					gap2 += 1
+					#gap2 += 1
 					continue
 				while aln2[j2][i2] == '-':
 					i2 += 1
@@ -86,6 +120,12 @@ class merger:
 		score_tab = {}
 		
 		for i in range(len(aln1[0])):
+			score_tab[(i,-1)] = 0
+
+		for j in range(len(aln2[0])):
+			score_tab[(-1,j)] = 0
+		
+		for i in range(len(aln1[0])):
 			for j in range(len(aln2[0])):
 				score_tab[(i,j)] = (w-1)*R1[i]*R2[j]
 			
@@ -95,7 +135,7 @@ class merger:
 			L2 = []
 			d2 = {}
 			for j in range(n):
-			# below L and d are used as "references" (just as pointers in C++): they are not deep copy, but a shallow copy of L1/L2 and d1/d2
+			# below L and d are used as "references" (just as pointers in C++): they are not deep copy, but a shallow copy of L1|L2 and d1|d2
 				if j < len(aln1):
 					L = L1
 					d = d1
@@ -118,32 +158,31 @@ class merger:
 	def TP_score(self,aln1,taxa1,aln2,taxa2):
 		return self.heuristic_score(aln1,taxa1,aln2,taxa2,w=1)
 
-	def llh_score(self,aln1,taxa1,aln2,taxa2,epsilon_g=-1,epsilon=-15):
+	def llh_score(self,aln1,taxa1,aln2,taxa2):
 		TP_score,R1,R2 = self.TP_score(aln1,taxa1,aln2,taxa2)
 		score_tab = {}
+
+		self.evalRef(aln1,taxa1,aln2,taxa2)
+		print(self.wp,self.wn)
 
 		for j in range(len(aln2[0])):
 			score_tab[(-1,j)] = 0
 			for i in range(len(aln1[0])):
-				p = 1.0-float(TP_score[(i,j)])/(R1[i]*R2[j])
-				if p:
-					score_tab[(-1,j)] += log(p)
-				else:
-					score_tab[(-1,j)] = epsilon_g
-					break
+				H_ij = R1[i]*R2[j]
+				p = 1.0-(self.wp*TP_score[(i,j)]+self.wn*(H_ij-TP_score[(i,j)]))/H_ij
+				score_tab[(-1,j)] += log(p)
 
 		for i in range(len(aln1[0])):
 			score_tab[(i,-1)] = 0
 			for j in range(len(aln2[0])):
-				p = 1.0-float(TP_score[(i,j)])/(R1[i]*R2[j])
-				if p:
-					score_tab[(i,-1)] += log(p)
-				else:
-					score_tab[(i,-1)] = epsilon_g
-					break
+				H_ij = R1[i]*R2[j]
+				p = 1.0-(self.wp*TP_score[(i,j)]+self.wn*(H_ij-TP_score[(i,j)]))/H_ij
+				#print(p)
+				score_tab[(i,-1)] += log(p)
 
 		for (i,j) in TP_score:
-			score_tab[(i,j)] = log(float(TP_score[(i,j)])/(R1[i]*R2[j])) if TP_score[(i,j)] else epsilon
+			H_ij = R1[i]*R2[j]
+			score_tab[(i,j)] = log((self.wp*TP_score[(i,j)]+self.wn*(H_ij-TP_score[(i,j)]))/H_ij)
 
 		return score_tab
 	
