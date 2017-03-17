@@ -21,8 +21,8 @@ class merger:
 		m = len(self.ref_aln[0])
 		n = len(aln1) + len(aln2)
 		matching = [[-1 for x in range(m)] for y in range(n)]
-		match1 = [[-1 for x in range(len(aln1[0])+1)] for y in range(len(aln1))] # the last column stores the length of each sequence
-		match2 = [[-1 for x in range(len(aln2[0])+1)] for y in range(len(aln2))] # the last column stores the length of each sequence
+		#match1 = [[-1 for x in range(len(aln1[0])+1)] for y in range(len(aln1))] # the last column stores the length of each sequence
+		#match2 = [[-1 for x in range(len(aln2[0])+1)] for y in range(len(aln2))] # the last column stores the length of each sequence
 
 		# match aln1 to ref_aln
 		for j1 in range(len(aln1)):
@@ -37,14 +37,14 @@ class merger:
 					continue
 				while aln1[j1][i1] == '-':
 					i1 += 1
-				match1[j1][i1] = k
+				#match1[j1][i1] = k
 				k += 1
 				if aln1[j1][i1] == self.ref_aln[j][i]:
 					matching[j1][i] = i1
 					i1 += 1
 				else:
 					print("reference alignment and alignment 1 are not matched at taxon " + tax)
-			match1[j1][len(aln1[0])] = k
+			#match1[j1][len(aln1[0])] = k
 		# match aln2 to ref_aln
 		for j2 in range(len(aln2)):
 			tax = taxa2[j2]
@@ -58,15 +58,15 @@ class merger:
 					continue
 				while aln2[j2][i2] == '-':
 					i2 += 1
-				match2[j2][i2] = k
+				#match2[j2][i2] = k
 				k += 1
 				if aln2[j2][i2] == self.ref_aln[j][i]:
 					matching[j2+len(aln1)][i] = i2
 					i2 += 1
 				else:
 					print("reference alignment and alignment 2 are not matched at taxon " + tax)
-			match2[j2][len(aln2[0])] = k
-		return matching,match1,match2
+			#match2[j2][len(aln2[0])] = k
+		return matching #,match1,match2
 
 	def residue_count(self,aln):
 		R = []
@@ -80,7 +80,7 @@ class merger:
 	def heuristic_score(self,aln1,taxa1,aln2,taxa2,w=1):
 		R1 = self.residue_count(aln1)
 		R2 = self.residue_count(aln2)		
-		matching,m1,m2= self.ref_matching(aln1,taxa1,aln2,taxa2)
+		matching = self.ref_matching(aln1,taxa1,aln2,taxa2)
 		m = len(matching[0])
 		n = len(matching)
 		score_tab = {}
@@ -113,10 +113,43 @@ class merger:
 					score_tab[(x,y)] += (2*w-1)*d1[x]*d2[y]
 
 
-		return score_tab,m1,m2
+		return score_tab,R1,R2 #,m1,m2
+
+	def TP_score(self,aln1,taxa1,aln2,taxa2):
+		return self.heuristic_score(aln1,taxa1,aln2,taxa2,w=1)
+
+	def llh_score(self,aln1,taxa1,aln2,taxa2,epsilon_g=-1,epsilon=-15):
+		TP_score,R1,R2 = self.TP_score(aln1,taxa1,aln2,taxa2)
+		score_tab = {}
+
+		for j in range(len(aln2[0])):
+			score_tab[(-1,j)] = 0
+			for i in range(len(aln1[0])):
+				p = 1.0-float(TP_score[(i,j)])/(R1[i]*R2[j])
+				if p:
+					score_tab[(-1,j)] += log(p)
+				else:
+					score_tab[(-1,j)] = epsilon_g
+					break
+
+		for i in range(len(aln1[0])):
+			score_tab[(i,-1)] = 0
+			for j in range(len(aln2[0])):
+				p = 1.0-float(TP_score[(i,j)])/(R1[i]*R2[j])
+				if p:
+					score_tab[(i,-1)] += log(p)
+				else:
+					score_tab[(i,-1)] = epsilon_g
+					break
+
+		for (i,j) in TP_score:
+			score_tab[(i,j)] = log(float(TP_score[(i,j)])/(R1[i]*R2[j])) if TP_score[(i,j)] else epsilon
+
+		return score_tab
 	
 	def logodd_score(self,aln1,taxa1,aln2,taxa2,rand_P):
-		score_tab,match1,match2= self.heuristic_score(aln1,taxa1,aln2,taxa2)
+		#score_tab,match1,match2= self.heuristic_score(aln1,taxa1,aln2,taxa2)
+		score_tab,R1,R2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
 		#print(gap_rate1)
 		#print(gap_rate2)
 		for key in score_tab:
@@ -150,16 +183,16 @@ class merger:
 		backtrack = [['-' for i in range(m+1)] for j in range(n+1)]
 		for i in range(1,m+1):
 			backtrack[0][i] = 'L'
-			aln_score[0][i] = aln_score[0][i-1] #+ ins_score
+			aln_score[0][i] = aln_score[0][i-1] + score_tab[(-1,i-1)]#+ ins_score
 		for j in range(1,n+1):
 			backtrack[j][0] = 'U'
-			aln_score[j][0] = aln_score[j-1][0] #+ del_score
+			aln_score[j][0] = aln_score[j-1][0] + score_tab[(j-1,-1)]#+ del_score
 
 		for j in range(1,n+1):
 			for i in range(1,m+1):
 				ms = aln_score[j-1][i-1] + score_tab[(j-1,i-1)] 
-				g1 = aln_score[j][i-1] #+ ins_score
-				g2 = aln_score[j-1][i] #+ del_score
+				g1 = aln_score[j][i-1] + score_tab[(-1,i-1)] #+ ins_score
+				g2 = aln_score[j-1][i] + score_tab[(j-1,-1)] #+ del_score
 
 				if ms >= g1 and ms >= g2:
 					aln_score[j][i] = ms
@@ -192,9 +225,13 @@ class merger:
 		return aln_score[n][m], M1, M2		
 
 	def heuristic_merge(self,aln1,taxa1,aln2,taxa2):
-		score_tab,m1,m2 = self.heuristic_score(aln1,taxa1,aln2,taxa2,w=0.75)
+		score_tab,R1,R2 = self.heuristic_score(aln1,taxa1,aln2,taxa2)
+		return self.merge(aln1,aln2,score_tab)
+
+	def ML_merge(self,aln1,taxa1,aln2,taxa2):
+		score_tab = self.llh_score(aln1,taxa1,aln2,taxa2)
 		return self.merge(aln1,aln2,score_tab)
 
 	def logodd_merge(self,aln1,taxa1,aln2,taxa2,rand_P):
-		score_tab,del_score,ins_score = self.logodd_score(aln1,taxa1,aln2,taxa2,rand_P)
+		score_tab= self.logodd_score(aln1,taxa1,aln2,taxa2,rand_P)
 		return self.merge(aln1,aln2,score_tab)
