@@ -5,8 +5,8 @@ from sequence_lib import read_fasta
 #ref = ['ACGT','TAGC','GGTC','ACCG','TGGA','ATTG','AGTC','CTGT']
 #est = ['AAAA','CCCC','GGGG','TTTT','TGCA','ACGT','ACTG','CAGT']
 
-rname,ref = read_fasta("out")
-ename,est = read_fasta("out1")
+#rname,ref = read_fasta("out")
+#ename,est = read_fasta("out1")
 
 #The Fastsp function
 def FastSP(ref,est):
@@ -36,6 +36,6 @@ def FastSP(ref,est):
 	#print(s)
 	return int(s[24]), int(s[32]), int(s[40])
 
-shared,ref,est = FastSP(ref,est)
+#shared,ref,est = FastSP(ref,est)
 #print(shared,ref,est)
 #print(Modeler)
