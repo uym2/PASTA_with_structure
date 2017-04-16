@@ -15,7 +15,7 @@ else:
 #taxon_name2, aln2 = read_fasta(aln2_file)
 
 MGR = smplMerger(aln1_file,aln2_file)
-score,cons1,cons2 = MGR.smpl_merge(nsmpl=10,n1=20,n2=20)
+score,cons1,cons2 = MGR.smpl_merge(nsmpl=10,n1=50,n2=50)
 
 if outfile:
 	fout = open(outfile,'w')

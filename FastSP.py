@@ -32,8 +32,7 @@ def FastSP(ref,est):
                 f.write(est[i])
                 f.write('\n')
 	f.close()
-	s = subprocess.check_output(["java","-jar","FastSP/FastSP.jar","-r","ref.aln","-e","est.aln"],stderr=subprocess.STDOUT).split()
-	#print(s)
+	s = subprocess.check_output(["java","-jar","/home/uym2/my_gits/PASTA_with_structure/FastSP/FastSP.jar","-r","ref.aln","-e","est.aln"],stderr=subprocess.STDOUT).split()
 	return int(s[24]), int(s[32]), int(s[40])
 
 #shared,ref,est = FastSP(ref,est)

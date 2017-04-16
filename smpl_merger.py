@@ -18,44 +18,41 @@ class smplMerger:
 		i=0
 		j=0
 
+
 		for k in range(len(sub_merged[0])):
-			i1 = i
-			j1 = j
+			#print(k)
 			all_gap = False
 			for m in range(len(sub_aln1)):
 				if sub_merged[m][k] != '-':
+					while sub_aln1[m][i] != sub_merged[m][k]:
+						#print(sub_aln1[m][i],sub_merged[m][k])
+						i += 1
 					break
-			if m == len(sub_aln1):
-				all_gap = True
+			if m == len(sub_aln1)-1:
+				i1 = -1
+			else:
+				i1 = i
+				i += 1
+	
 			for m in range(len(sub_aln1),len(sub_merged)):
 				if sub_merged[m][k] != '-':
+					while sub_aln2[m-len(sub_aln1)][j] != sub_merged[m][k]:
+						j += 1
 					break
-			if m == len(sub_merged):
+
+			if m == len(sub_merged)-1:
 				# sub_aln2 of sub_merged all gap
 				j1 = -1
-			if all_gap:
-				# sub_aln1 of sub_merged all gap
-				i1 = -1
-				# sub_aln1 and sub_aln2 of sub_merged cannot be all gap at the same time (else sub_merged all gap, not makesense)
-				if not (i1,j1) in scoring: 
-					scoring[(i1,j1)] = 0
-					scoring[(i1,j1)] += 1
-			if i1 != -1:
-				i += 1
 			else:
-				for m in range(len(sub_aln1)):
-					if sub_aln1[m] != '-':
-						break
-				if m == len(sub_aln1):
-					i += 1
-			if j1 != -1:
+				j1 = j
 				j += 1
-			else:
-				for m in range(len(sub_aln2)):
-					if sub_aln2[m] != '-':
-						break
-				if m == len(sub_aln2):
-					j += 1
+			
+			if not (i1,j1) in scoring: 
+				scoring[(i1,j1)] = 0
+			scoring[(i1,j1)] += 1
+			#print(i1,j1)
+			#print(scoring[(i1,j1)])
+					
 
 	def sub_merge(self,n1=2000,n2=2000):
 		# randomly sample sequences from aln1 and aln2
@@ -69,10 +66,10 @@ class smplMerger:
 		name2,sub_aln2 = read_fasta("temp2.fas")
 		name,sub_merged = read_fasta("merged.fas")
 
-		subprocess.check_call(["rm","temp1.fas"])
-		subprocess.check_call(["rm","temp2.fas"])
-		subprocess.check_call(["rm","temp.fas"])
-		subprocess.check_call(["rm","merged.fas"])
+		#subprocess.check_call(["rm","temp1.fas"])
+		#subprocess.check_call(["rm","temp2.fas"])
+		#subprocess.check_call(["rm","temp.fas"])
+		#subprocess.check_call(["rm","merged.fas"])
 		
 		return sub_aln1, sub_aln2, sub_merged
 
@@ -80,14 +77,17 @@ class smplMerger:
 		scoring = {}
 		for i in range(nsmpl):
 			print(i)
-			sub_aln1,sub_aln2,sub_merged = self.sub_merge(n1,n2)
+			sub_aln1,sub_aln2,sub_merged = self.sub_merge(n1=n1,n2=n2)
 			self.sub_score(sub_aln1,sub_aln2,sub_merged,scoring)
-
+			#print(scoring)
+		
+		#print(scoring)
 		return scoring
 
 	def merge(self,scoring):
 		#name1,aln1 = read_fasta(self.alnFile1)
 		#name2,aln2 = read_fasta(self.alnFile2)
+
 
 		n = len(self.aln1[0])
 		m = len(self.aln2[0])
