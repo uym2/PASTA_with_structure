@@ -42,8 +42,20 @@ class smplMerger:
 					scoring[(i1,j1)] += 1
 			if i1 != -1:
 				i += 1
+			else:
+				for m in range(len(sub_aln1)):
+					if sub_aln1[m] != '-':
+						break
+				if m == len(sub_aln1):
+					i += 1
 			if j1 != -1:
 				j += 1
+			else:
+				for m in range(len(sub_aln2)):
+					if sub_aln2[m] != '-':
+						break
+				if m == len(sub_aln2):
+					j += 1
 
 	def sub_merge(self,n1=2000,n2=2000):
 		# randomly sample sequences from aln1 and aln2
